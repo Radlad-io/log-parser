@@ -22,12 +22,10 @@ export default function Home() {
         <form onSubmit={(e) => {
           e.preventDefault();
           setPassword(e.target[0].value);
-          // console.log(e);
         }}>
         <input 
             prop="passwordForm"
             type="password"
-            value={password}
             placeholder="Enter password"
           />
           <button type='submit' >Enter</button>

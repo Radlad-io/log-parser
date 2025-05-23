@@ -1,10 +1,14 @@
-'use client'
+import { Suspense } from 'react';
+import LogPageContent from './LogPageContent';
 
-export default function Log() {
-
+export default function LogPage() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-     <h1>Log Page</h1>
-    </div>
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg text-gray-600">Loading...</div>
+      </div>
+    }>
+      <LogPageContent />
+    </Suspense>
   );
 }
