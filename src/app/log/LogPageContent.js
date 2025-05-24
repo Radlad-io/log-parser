@@ -224,26 +224,29 @@ export default function LogPageContent() {
 
   if (loading) {
     return (
-      <div className="p-4">
-        <h1 className="text-2xl font-bold mb-4">Loading Log File</h1>
-        <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-          <div 
-            className="bg-blue-600 h-2.5 rounded-full" 
-            style={{ 
-              width: `${(progress.current / progress.total) * 100}%` 
-            }}
-          ></div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="max-w-md w-full mx-auto p-6 bg-white rounded-lg shadow-lg">
+          <h1 className="text-2xl font-bold mb-6 text-center text-gray-800">Loading Log File</h1>
+          <div className="space-y-4">
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div 
+                className="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-in-out" 
+                style={{ 
+                  width: `${(progress.current / progress.total) * 100}%` 
+                }}
+              ></div>
+            </div>
+            <p className="text-center text-gray-600">
+              Processing lines: {progress.current.toLocaleString()} / {progress.total.toLocaleString()}
+            </p>
+          </div>
         </div>
-        <p className="mt-2">
-          Processing lines: {progress.current} / {progress.total}
-        </p>
       </div>
     );
   }
 
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Log File Viewer</h1>
+    <div className="p-4 h-screen">
       {isProcessed && <LogViewer key="log-viewer" />}
     </div>
   );
