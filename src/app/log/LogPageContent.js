@@ -225,8 +225,8 @@ export default function LogPageContent() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="max-w-md w-full mx-auto p-6 bg-white rounded-lg shadow-lg">
-          <h1 className="text-2xl font-bold mb-6 text-center text-gray-800">Loading Log File</h1>
+        <div className="max-w-md w-full mx-auto p-6 bg-background rounded-lg shadow-lg border-2 border-white/20">
+          <h1 className="text-2xl font-bold mb-6 text-center text-gray-800 text-white">Loading Log File</h1>
           <div className="space-y-4">
             <div className="w-full bg-gray-200 rounded-full h-2.5">
               <div 
@@ -236,7 +236,9 @@ export default function LogPageContent() {
                 }}
               ></div>
             </div>
-            <p className="text-center text-gray-600">
+            <span className='m6 p6'></span>
+            <br />
+            <p className="text-center text-gray-200">
               Processing lines: {progress.current.toLocaleString()} / {progress.total.toLocaleString()}
             </p>
           </div>
@@ -246,7 +248,7 @@ export default function LogPageContent() {
   }
 
   return (
-    <div className="p-4 h-screen">
+    <div className="px-4 h-screen">
       {isProcessed && <LogViewer key="log-viewer" />}
     </div>
   );

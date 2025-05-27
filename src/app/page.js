@@ -15,12 +15,12 @@ export default function Home() {
   }, [password]);
   
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900">
-      <div className="max-w-md w-full mx-4 space-y-8 p-10 bg-white rounded-xl shadow-2xl">
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="max-w-md w-full mx-4 space-y-8 p-10 bg-neutral-900 rounded-md shadow-2xl border-2 border-white/20">
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">Log Parser</h1>
-          <p className="text-sm text-gray-600">
-            Enter your password to access the log file viewer
+          <h1 className="text-4xl font-bold text-white mb-3">Log Parser</h1>
+          <p className="text-sm text-white/60">
+            Enter your password to access the log file uploader
           </p>
         </div>
 
@@ -47,8 +47,8 @@ export default function Home() {
                 type="password"
                 required
                 className={`appearance-none rounded-lg relative block w-full px-4 py-3 border ${
-                  error ? 'border-red-300' : 'border-gray-300'
-                } placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
+                  error ? 'border-red-300' : 'border-white/20'
+                } bg-neutral-800 placeholder-white/50 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
                 placeholder="Enter password"
                 onChange={() => error && setError('')}
               />
@@ -71,8 +71,8 @@ export default function Home() {
           </div>
         </form>
 
-        <div className="mt-6 text-center text-xs text-gray-500">
-          <p>Protected access to log file viewer</p>
+        <div className="mt-6 text-center text-xs text-white/50">
+          <p>Protected access to file uploader</p>
         </div>
       </div>
     </div>

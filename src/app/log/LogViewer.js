@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Header from './Header';
+import Link from 'next/link';
 import {
   Pagination,
   PaginationContent,
@@ -392,14 +392,50 @@ function LogViewerContent() {
     setPage(newPage);
   };
 
-  // Debounce search term updates
+  // Update debounced search term
   useEffect(() => {
+    setSearchLoading(true); // Show loading immediately when user types
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
     }, 300); // 300ms delay
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+    };
   }, [searchTerm]);
+
+  // Handle the actual search when debounced term changes
+  useEffect(() => {
+    const performSearch = async () => {
+      try {
+        const filtered = await searchAllRecords(debouncedSearchTerm);
+
+        filtered.sort((a, b) => a.lineNumber - b.lineNumber);
+        const filteredLineNumbers = filtered.map(record => record.lineNumber);
+        setFilteredKeys(filteredLineNumbers);
+        setTotalPages(Math.max(1, Math.ceil(filtered.length / linesPerPage)));
+        setPage(1);
+        setLines(filtered.slice(0, linesPerPage));
+
+        const totalRecords = filtered.length;
+        let status = `Found ${totalRecords} matching records`;
+        if (debouncedSearchTerm.trim() !== '') {
+          status += ` for "${debouncedSearchTerm}"${isCaseSensitive ? ' (case-sensitive)' : ''}`;
+        }
+        if (startTime || endTime) {
+          status += ` between ${startTime || 'start'} and ${endTime || 'end'}`;
+        }
+        setSearchStatus(status);
+      } catch (err) {
+        console.error('Search failed:', err);
+        setError(err.message);
+      } finally {
+        setSearchLoading(false);
+      }
+    };
+
+    performSearch();
+  }, [debouncedSearchTerm, startTime, endTime, isCaseSensitive, selectedLogTypes]);
 
   // Collect unique log types on initial load
   useEffect(() => {
@@ -697,41 +733,6 @@ function LogViewerContent() {
     }
   };
 
-  // Modify the useEffect that handles search to properly trigger on time range changes
-  useEffect(() => {
-    const performSearch = async () => {
-      setSearchLoading(true);
-      
-      try {
-        const filtered = await searchAllRecords(debouncedSearchTerm);
-
-        filtered.sort((a, b) => a.lineNumber - b.lineNumber);
-        const filteredLineNumbers = filtered.map(record => record.lineNumber);
-        setFilteredKeys(filteredLineNumbers);
-        setTotalPages(Math.max(1, Math.ceil(filtered.length / linesPerPage)));
-        setPage(1);
-        setLines(filtered.slice(0, linesPerPage));
-
-        const totalRecords = filtered.length;
-        let status = `Found ${totalRecords} matching records`;
-        if (debouncedSearchTerm.trim() !== '') {
-          status += ` for "${debouncedSearchTerm}"${isCaseSensitive ? ' (case-sensitive)' : ''}`;
-        }
-        if (startTime || endTime) {
-          status += ` between ${startTime || 'start'} and ${endTime || 'end'}`;
-        }
-        setSearchStatus(status);
-      } catch (err) {
-        console.error('Search failed:', err);
-        setError(err.message);
-      } finally {
-        setSearchLoading(false);
-      }
-    };
-
-    performSearch();
-  }, [debouncedSearchTerm, startTime, endTime, isCaseSensitive, selectedLogTypes]);
-
   const handleClear = async () => {
     setSearchTerm('');
     setStartTime('');
@@ -865,19 +866,19 @@ function LogViewerContent() {
   }
 
   return (
-    <div className="h-screen flex flex-col">
-      <Header 
-        totalRecords={filteredKeys.length}
-        displayedRecords={lines.length}
-        serialNumber={serialNumber}
-        date={new Date(logDate).toLocaleDateString()}
-      />
+    <div className="h-screen flex">
+      {/* Left Column - Search and Filters */}
+      <aside className="w-1/4 min-w-[300px] p-4 border-r border-gray-200 bg-background h-screen overflow-y-auto">
+        <div className="space-y-6">
+          {/* Title with back link */}
+          <div className="flex items-center mb-6">
+            <Link href="/upload" className="text-2xl font-bold text-white hover:text-white/80 transition-colors">
+              Log File Viewer
+            </Link>
+          </div>
 
-      <div className="flex flex-row min-h-screen w-full">
-        {/* Left Column - Search and Filters */}
-        <aside className="w-1/4 min-w-[300px] p-4 border-r border-gray-200 bg-background sticky top-0">
-          <div className="">
-            <h2 className="text-xl font-semibold mb-4">Search & Filters</h2>
+          <div>
+            {/* <h2 className="text-xl font-semibold mb-4">Search & Filters</h2> */}
             <div className="space-y-4">
               <div className="space-y-2">
                 <div className="flex gap-2">
@@ -921,7 +922,7 @@ function LogViewerContent() {
 
               {/* Log Type Filter */}
               <div className="space-y-2">
-                <label className="block text-lg text-white font-medium">
+                <label className="block text-lg text-white font-medium mb-2">
                   Log Types
                 </label>
                 <div className="space-y-2 max-h-40 overflow-y-auto border rounded p-2">
@@ -947,7 +948,7 @@ function LogViewerContent() {
                   ))}
                 </div>
                 {logTypes.length > 0 && (
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 mt-2">
                     <button
                       type="button"
                       onClick={() => setSelectedLogTypes(logTypes)}
@@ -999,140 +1000,10 @@ function LogViewerContent() {
                 </div>
               </div>
 
-              <span className="m-6" />
-
-              {/* Pagination */}
-              <div className="p-4 rounded-lg shadow-lg border border-gray-200">
-                <Pagination>
-                  <PaginationContent className="flex flex-wrap gap-1 text-sm">
-                    <PaginationItem>
-                      <PaginationPrevious 
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          if (page > 1) {
-                            setPage(page - 1);
-                            fetchPageOfResults(page - 1);
-                          }
-                        }}
-                        aria-disabled={page === 1}
-                        className={`${page === 1 ? 'pointer-events-none opacity-50' : ''} text-sm`}
-                      />
-                    </PaginationItem>
-                    
-                    {/* First Page */}
-                    {page > 2 && (
-                      <PaginationItem>
-                        <PaginationLink
-                          href="#"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setPage(1);
-                            fetchPageOfResults(1);
-                          }}
-                          className="h-8 w-8 p-0 flex items-center justify-center text-sm"
-                        >
-                          1
-                        </PaginationLink>
-                      </PaginationItem>
-                    )}
-
-                    {/* Ellipsis */}
-                    {page > 3 && (
-                      <PaginationItem>
-                        <PaginationEllipsis className="h-8 w-6 p-0 text-sm" />
-                      </PaginationItem>
-                    )}
-
-                    {/* Previous Page */}
-                    {page > 1 && (
-                      <PaginationItem>
-                        <PaginationLink
-                          href="#"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setPage(page - 1);
-                            fetchPageOfResults(page - 1);
-                          }}
-                          className="h-8 w-8 p-0 flex items-center justify-center text-sm"
-                        >
-                          {page - 1}
-                        </PaginationLink>
-                      </PaginationItem>
-                    )}
-
-                    {/* Current Page */}
-                    <PaginationItem>
-                      <PaginationLink 
-                        href="#" 
-                        isActive
-                        className="h-8 w-8 p-0 flex items-center justify-center text-sm"
-                      >
-                        {page}
-                      </PaginationLink>
-                    </PaginationItem>
-
-                    {/* Next Page */}
-                    {page < totalPages && (
-                      <PaginationItem>
-                        <PaginationLink
-                          href="#"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setPage(page + 1);
-                            fetchPageOfResults(page + 1);
-                          }}
-                          className="h-8 w-8 p-0 flex items-center justify-center text-sm"
-                        >
-                          {page + 1}
-                        </PaginationLink>
-                      </PaginationItem>
-                    )}
-
-                    {/* Ellipsis */}
-                    {page < totalPages - 2 && (
-                      <PaginationItem>
-                        <PaginationEllipsis className="h-8 w-6 p-0 text-sm" />
-                      </PaginationItem>
-                    )}
-
-                    {/* Last Page */}
-                    {page < totalPages - 1 && (
-                      <PaginationItem>
-                        <PaginationLink
-                          href="#"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setPage(totalPages);
-                            fetchPageOfResults(totalPages);
-                          }}
-                          className="h-8 w-8 p-0 flex items-center justify-center text-sm"
-                        >
-                          {totalPages}
-                        </PaginationLink>
-                      </PaginationItem>
-                    )}
-
-                    <PaginationItem>
-                      <PaginationNext
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          if (page < totalPages) {
-                            setPage(page + 1);
-                            fetchPageOfResults(page + 1);
-                          }
-                        }}
-                        aria-disabled={page >= totalPages}
-                        className={`${page >= totalPages ? 'pointer-events-none opacity-50' : ''} text-sm`}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              </div>
+              <span className="m-2" />
 
               {/* Share Button */}
-              <div className="mt-6 p-4 border-t border-gray-200">
+              <div className="mt-4 py-4 border-t border-gray-200">
                 <div className="relative">
                   <button
                     onClick={copyShareableUrl}
@@ -1176,30 +1047,60 @@ function LogViewerContent() {
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </aside>
 
-        {/* Right Column - Log Output */}
-        <main className="flex-1 overflow-y-auto relative">
-          {loading ? (
-            <div className="absolute inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center z-10">
-              <div className="max-w-sm w-full p-6">
-                <div className="flex flex-col items-center space-y-4">
-                  <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                  <div className="text-lg font-medium text-gray-700">Updating Results</div>
-                  <div className="text-sm text-gray-500">Applying filters...</div>
+              {/* Info Badges */}
+              <div className="space-y-2">
+                {serialNumber && (
+                  <div className="flex items-center p-2 my-2 bg-blue-500/20 border border-blue-500/20 rounded-lg">
+                    <span className="text-sm text-blue-200">
+                      Device: alexa35-{serialNumber}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center p-2 my-2 bg-orange-500/20 border border-orange-500/20 rounded-lg">
+                  <span className="text-sm text-orange-200">
+                    Date: {new Date(logDate).toLocaleDateString()}
+                  </span>
+                </div>
+                <div className="flex items-center p-2 my-2 bg-green-500/20 border border-green-500/20 rounded-lg">
+                  <span className="text-sm text-green-200">
+                    Total: {filteredKeys.length.toLocaleString()} logs
+                  </span>
+                </div>
+                <div className="flex items-center p-2 my-2 bg-purple-500/20 border border-purple-500/20 rounded-lg">
+                  <span className="text-sm text-purple-200">
+                    Showing: {lines.length.toLocaleString()} logs
+                  </span>
                 </div>
               </div>
             </div>
-          ) : lines.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-gray-500">
-              No logs found matching the current filters
+          </div>
+        </div>
+      </aside>
+
+      {/* Right Column - Log Output */}
+      <main className="flex-1 overflow-y-auto relative flex flex-col">
+        {(loading || searchLoading) ? (
+          <div className="absolute inset-0 bg-white backdrop-blur-sm flex items-center justify-center z-10">
+            <div className="max-w-sm w-full p-6">
+              <div className="flex flex-col items-center space-y-4">
+                <div className="w-16 h-16 mb-4 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                <div className="text-lg font-medium text-gray-700">Updating Results</div>
+                <div className="text-sm text-gray-500">
+                  {searchLoading ? 'Searching...' : 'Applying filters...'}
+                </div>
+              </div>
             </div>
-          ) : (
-            <div className="space-y-0.5 mb-4 text-sm">
+          </div>
+        ) : lines.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-gray-500">
+            No logs found matching the current filters
+          </div>
+        ) : (
+          <>
+            <div className="flex-1 space-y-0.5 mb-4 text-sm">
               <div className="grid grid-cols-[80px_60px_100px_1fr] gap-2 items-start px-3 py-2 text-xs font-semibold text-gray-600 bg-gray-100 border-y border-gray-200 sticky top-0 shadow-sm">
-                <span className="text-right uppercase tracking-wider">Line #</span>
+                <span className="text-left uppercase tracking-wider">Line #</span>
                 <span className="uppercase tracking-wider">Time</span>
                 <span className="uppercase tracking-wider">Type</span>
                 <span className="uppercase tracking-wider">Message</span>
@@ -1209,7 +1110,7 @@ function LogViewerContent() {
                   key={line.lineNumber} 
                   className="grid grid-cols-[80px_60px_100px_1fr] text-center gap-2 items-start px-3 py-2 bg-white border border-gray-100 hover:bg-gray-50 transition-colors font-mono text-xs leading-5"
                 >
-                  <span className="text-gray-400 select-none text-right font-medium">
+                  <span className="text-gray-400 select-none text-left font-medium">
                     <b>{line.lineNumber}</b>
                   </span>
                   <span className="text-gray-500 font-medium whitespace-nowrap">
@@ -1221,7 +1122,7 @@ function LogViewerContent() {
                     })}
                   </span>
                   <span 
-                    className={`font-medium truncate px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider ${getLogTypeColor(line.logType)}`} 
+                    className={`font-medium truncate px-2 py-0.5 rounded-sm text-[10px] uppercase tracking-wider ${getLogTypeColor(line.logType)}`} 
                     title={line.logType}
                   >
                     {getBaseLogType(line.logType)}
@@ -1232,9 +1133,139 @@ function LogViewerContent() {
                 </div>
               ))}
             </div>
-          )}
-        </main>
-      </div>
+
+            {/* Pagination at bottom */}
+            <div className="sticky bottom-0 bg-gray-100 backdrop-blur-sm border-t border-gray-200 p-4">
+              <Pagination>
+                <PaginationContent className="flex flex-wrap gap-1 justify-center">
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (page > 1) {
+                          setPage(page - 1);
+                          fetchPageOfResults(page - 1);
+                        }
+                      }}
+                      aria-disabled={page === 1}
+                      className={`${page === 1 ? 'pointer-events-none opacity-30' : ''} text-gray-600 hover:text-gray-800 hover:bg-gray-200`}
+                    />
+                  </PaginationItem>
+                  
+                  {/* First Page */}
+                  {page > 2 && (
+                    <PaginationItem>
+                      <PaginationLink
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setPage(1);
+                          fetchPageOfResults(1);
+                        }}
+                        className="text-gray-600 hover:text-gray-800 hover:bg-gray-200"
+                      >
+                        1
+                      </PaginationLink>
+                    </PaginationItem>
+                  )}
+
+                  {/* Ellipsis */}
+                  {page > 3 && (
+                    <PaginationItem>
+                      <PaginationEllipsis className="text-gray-600" />
+                    </PaginationItem>
+                  )}
+
+                  {/* Previous Page */}
+                  {page > 1 && (
+                    <PaginationItem>
+                      <PaginationLink
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setPage(page - 1);
+                          fetchPageOfResults(page - 1);
+                        }}
+                        className="text-gray-600 hover:text-gray-800 hover:bg-gray-200"
+                      >
+                        {page - 1}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )}
+
+                  {/* Current Page */}
+                  <PaginationItem>
+                    <PaginationLink 
+                      href="#" 
+                      isActive
+                      className="bg-gray-200 text-gray-800 border-gray-300"
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+
+                  {/* Next Page */}
+                  {page < totalPages && (
+                    <PaginationItem>
+                      <PaginationLink
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setPage(page + 1);
+                          fetchPageOfResults(page + 1);
+                        }}
+                        className="text-gray-600 hover:text-gray-800 hover:bg-gray-200"
+                      >
+                        {page + 1}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )}
+
+                  {/* Ellipsis */}
+                  {page < totalPages - 2 && (
+                    <PaginationItem>
+                      <PaginationEllipsis className="text-gray-600" />
+                    </PaginationItem>
+                  )}
+
+                  {/* Last Page */}
+                  {page < totalPages - 1 && (
+                    <PaginationItem>
+                      <PaginationLink
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setPage(totalPages);
+                          fetchPageOfResults(totalPages);
+                        }}
+                        className="text-gray-600 hover:text-gray-800 hover:bg-gray-200"
+                      >
+                        {totalPages}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )}
+
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (page < totalPages) {
+                          setPage(page + 1);
+                          fetchPageOfResults(page + 1);
+                        }
+                      }}
+                      aria-disabled={page >= totalPages}
+                      className={`${page >= totalPages ? 'pointer-events-none opacity-30' : ''} text-gray-600 hover:text-gray-800 hover:bg-gray-200`}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          </>
+        )}
+      </main>
     </div>
   );
 }
